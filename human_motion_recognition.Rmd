@@ -1,0 +1,985 @@
+---
+title: "R Notebook Human Motion Data"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Testing and plotting captured data for further classification
+
+```{r}
+# Delete all variables
+rm( list = ls() )
+```
+
+### Used libaries:
+
+```{r}
+# Import libaries
+library(ggplot2)
+library(GGally)
+library(dplyr)
+library(plotly)
+library(mosaic)
+library(isotree)
+library(party)
+library(rpart)
+library(caret)
+# Used to scale time
+library(lubridate)
+library(scales)
+library(hms)
+```
+
+
+### Read in data and inspect
+
+```{r}
+read_data = read.csv("Idle_Run_Tobias_Egger.csv")
+motion_data <- data.frame(read_data)
+```
+
+* There are 2893 observations
+
+* This value is available under the column n
+
+```{r}
+inspect(motion_data)
+```
+
+#### Print thirst and last 6 entries
+
+```{r}
+head(motion_data)
+tail(motion_data)
+```
+
+```{r}
+summary(motion_data)
+```
+
+
+#### Print column names
+
+```{r}
+names(motion_data)
+```
+
+### Activity data distribution
+
+For tobias egger, activity idle, there are 1445 observations
+
+For tobias egger, activity run, there are 1448 observations
+  
+```{r}
+group_by(motion_data, Activity) %>%
+ggplot(aes(x = Activity, fill=Activity)) + 
+geom_bar(color = c('light blue', 'dark orange')) +
+facet_grid(.~Creator  ) +
+scale_fill_manual(values=c('light blue', 'dark orange')) +
+scale_colour_manual(values=c('light blue', 'dark orange'))
+```
+
+```{r}
+activity_count <- group_by(motion_data, Activity) %>%
+  summarize(count=n())
+
+activity_count
+```
+
+
+Use activities from Tobias Egger
+```{r}
+motion_data_te <- subset(motion_data, Creator == "Tobias Egger")
+```
+
+
+### Activity-wise distribution
+
+Extract hours from timestamp
+
+Link: https://www.appsloveworld.com/r/100/298/density-plot-based-on-time-of-the-day
+
+Link: https://stackoverflow.com/questions/13456241/convert-unix-epoch-to-date-object
+```{r}
+density_data <- data.frame(motion_data_te)
+
+# convert character to POSIXct
+density_data$timestamp <- as.POSIXct(density_data$timestamp/1000, origin="1970-01-01")
+# extract hour and minute:
+density_data$time <- hms::hms(second(density_data$timestamp), minute(density_data$timestamp), hour(density_data$timestamp))  
+# convert to POSIXct again since ggplot does not work with class hms.
+density_data$time <- as.POSIXct(density_data$time)
+density_data$date <-as.Date(as.POSIXct(density_data$timestamp, origin="1970-01-01"))
+density_data
+```
+
+
+Plot timestamp density
+
+```{r}
+
+ggplot(density_data, aes(x=time, fill=Activity)) +
+  geom_histogram(bins=(sqrt(length(density_data$Activity))),fill="white",color="black",aes(y=..density..)) +  
+  geom_density(alpha=.3) + 
+  scale_x_datetime(breaks = date_breaks("1 hours"), labels=date_format("%H:%m"), expand = c(0,0))
+```
+
+
+### Axis activity-wise distribution
+
+Density for X axis
+```{r}
+ggplot(motion_data_te, aes(x=X, fill=Activity)) +
+  geom_histogram(bins=(sqrt(length(motion_data_te$Activity))),fill="white",color="black",aes(y=..density..)) +  
+  geom_density(alpha=.3)
+```
+
+Density for Y axis
+```{r}
+ggplot(motion_data_te, aes(x=Y, fill=Activity)) +
+  geom_histogram(bins=(sqrt(length(motion_data_te$Activity))),fill="white",color="black",aes(y=..density..)) +  
+  geom_density(alpha=.3)
+```
+
+Density for Z axis
+```{r}
+ggplot(motion_data_te, aes(x=Z, fill=Activity)) +
+  geom_histogram(bins=(sqrt(length(motion_data_te$Activity))),fill="white",color="black",aes(y=..density..)) +  
+  geom_density(alpha=.3)
+```
+
+
+### Compare axis data points over time
+
+```{r}
+
+
+ggplot(motion_data_te, aes(timestamp, X)) +
+geom_line()
+
+ggplot(motion_data_te, aes(timestamp, Y)) +
+geom_line()
+ggplot(motion_data_te, aes(timestamp, Z)) +
+geom_line()
+```
+
+
+### Split the axis up per activity
+
+
+```{r}
+idle_activity = subset(motion_data_te, Activity == "Idle")
+
+idle_plot <- group_by(idle_activity, Activity) %>%
+  ggplot(aes(x=timestamp)) +
+  labs( x = "Timestamp", y = "Acceleration") +
+  geom_line(aes(y = X), color="dark green", alpha = 0.8) +
+  geom_line(aes(y = Y), color="light blue", alpha = 0.8) +
+  geom_line(aes(y = Z), color="dark orange", alpha = 0.8) 
+  
+  
+run_activity = subset(motion_data_te, Activity == "Run")
+
+run_plot <- group_by(run_activity, Activity) %>%
+  ggplot(aes(x=timestamp)) +
+  labs( x = "Timestamp", y = "Acceleration") +
+  geom_line(aes(y = X), color="dark green", alpha = 0.8) +
+  geom_line(aes(y = Y), color="light blue", alpha = 0.8) +
+  geom_line(aes(y = Z), color="dark orange", alpha = 0.8) 
+  
+```
+
+
+#### Idle activity
+
+Dark green: X
+
+Light blue: Y
+
+Dark orange: Z
+```{r}
+ggplotly(idle_plot)
+```
+
+
+#### Run activity
+
+Dark green: X
+
+Light blue: Y
+
+Dark orange: Z
+```{r}
+ggplotly(run_plot)
+```
+
+### Basic X, Y, Z plot for motion data
+
+In the first three plots we can already distinguish between idle and run. 
+
+
+Third plot:
+
+dark green: X
+
+light blue: Y
+
+dark orange: Z
+
+
+```{r}
+plot_data <- subset(motion_data_te, select=c(X, Y, Z))
+
+plot(motion_data_te$X)
+plot(motion_data_te$Y)
+plot(motion_data_te$Z)
+
+plot(plot_data, col = c('dark green', 'light blue', 'dark orange'))
+```
+
+### Use the pairplot for quantitative variables
+
+Light blue: Activity running
+
+Dark orange: Activity idle
+
+We can also see here that timestamp and sample correlates with 0,869 the best.
+
+For the axis, z and y correlates with 0.079 the best.
+
+```{r}
+pair_data <- subset(motion_data_te, select=c(Sample, timestamp, X, Y, Z))
+
+ggpairs(data=pair_data, aes(color = motion_data_te$Activity), title="Species pair plot with quantiative variables")  +
+  scale_fill_manual(values=c('light blue', 'dark orange')) +
+  scale_colour_manual(values=c('light blue', 'dark orange'))
+```
+
+
+### To get all the outliers of X, Y, Z for idle, run, 
+
+  I created a custom method to find the outliers  plotted the IndividualID below
+  
+  For timestamp, X there are 196 outliers
+
+```{r}
+findoutlier <- function(x) {
+  return(x < quantile(x, .25) - 1.5*IQR(x) | x > quantile(x, .75) + 1.5*IQR(x))
+}
+
+data_out <- 
+      group_by(motion_data_te, Activity) %>%
+      mutate(outliers = ifelse(findoutlier(timestamp) | findoutlier(X),  ID, NA))
+
+indexes <-data_out %>%
+  filter(outliers != "")
+indexes
+```
+
+
+For timestamp, Y there are 103 outliers
+
+```{r}
+motion_data_te <- 
+      group_by(motion_data_te, Activity) %>%
+      mutate(outliers = ifelse(findoutlier(timestamp) | findoutlier(Y),  ID, NA))
+
+motion_data_te %>%
+  filter(outliers != "")
+```
+
+```{r}
+motion_data_te
+```
+
+
+```{r}
+motion_data_te %>%
+  filter(outliers != "")
+```
+
+
+Boxplot timestamp, y for activity idle and run
+
+```{r}
+group_by(motion_data_te, Activity) %>%
+ggplot(aes(x = timestamp, y = Y, fill = Activity)) + 
+  geom_boxplot( color = "black") +
+  facet_grid(Creator ~ Activity)  +
+  geom_text(aes(label=""), na.rm=TRUE,hjust=1) + 
+  scale_fill_manual(values=c('light blue', 'dark orange'))+
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+For timestamp, Z there are 290 outliers
+
+```{r}
+motion_data_te <- 
+      group_by(motion_data_te, Activity) %>%
+      mutate(outliers = ifelse(findoutlier(timestamp) | findoutlier(Z),  ID, NA))
+
+motion_data_te %>%
+  filter(outliers != "")
+```
+
+Boxplot timestamp, z for activity idle and run
+
+```{r}
+group_by(motion_data_te, Activity) %>%
+ggplot(aes(x = timestamp, y = Z, fill = Activity)) + 
+  geom_boxplot( color = "black") +
+  facet_grid(Creator ~ Activity)  +
+  geom_text(aes(label=""), na.rm=TRUE,hjust=1) + 
+  scale_fill_manual(values=c('light blue', 'dark orange'))+
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+In total there are 589 outliers.
+
+
+Boxplot timestamp, x for activity idle and run
+
+```{r}
+group_by(motion_data_te, Activity) %>%
+ggplot(aes(x = timestamp, y = X, fill = Activity)) + 
+  geom_boxplot() +
+  facet_grid(Creator ~ Activity)  +
+  #geom_text(aes(label="Y"), na.rm=TRUE,hjust=1) + 
+  scale_fill_manual(values=c('light blue', 'dark orange'))+
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+Without outliers -> Didn't work:
+
+```{r}
+#data <- subset(motion_data_te, Activity == "Idle")
+
+# get the values of the outliers
+outliers_X <- boxplot(motion_data_te$X, plot = F)$out
+
+# find the row numbers of the outliers
+index_out <- match(outliers_X, motion_data_te$X)
+```
+
+
+Gather y axis outliers
+```{r}
+# get the values of the outliers
+outliers_Y <- boxplot(motion_data_te$Y, plot = F)$out
+
+# find the row numbers of the outliers & add them to the vector "index_out"
+index_out <- c(index_out, match(outliers_Y, motion_data_te$Y))
+```
+
+
+Gather z axis outliers
+```{r}
+# get the values of the outliers
+outliers_Z <- boxplot(motion_data_te$Z, plot = F)$out
+
+# find the row numbers of the outliers & add them to the vector "index_out"
+index_out <- c(index_out, match(outliers_Z, motion_data_te$Z))
+```
+
+
+Print outliers
+```{r}
+# show the positions of the outliers in X, Y, Z
+index_out
+```
+
+
+```{r}
+# remove outliers
+data_no_out <- motion_data_te[-index_out,]
+data_no_out
+```
+
+
+```{r}
+boxplot(data_no_out$X, plot = T)
+boxplot(data_no_out$Y, plot = T)
+boxplot(data_no_out$Z, plot = T)
+```
+
+
+### Preprocessing
+
+- delete column ID, outliers
+- encode Creator and Activity
+
+Delete column ID
+```{r}
+data_clf <- data.frame(motion_data_te)
+
+data_clf <- data_clf[,!names(data_clf) %in% c("ID", "outliers", "Creator", "Sample", "timestamp")]
+names(data_clf)
+```
+
+Encoding of categorical data -> Creator deleted due to NaN after scaling
+
+```{r}
+#data_clf$Creator <- as.numeric(factor(data_clf$Creator))
+##data_clf$Activity <- as.numeric(factor(data_clf$Activity))
+```
+
+
+```{r}
+head(data_clf)
+```
+
+Scale data -> For classification I got the same result with, without scaling
+
+```{r}
+data_clf_scaled <- data.frame(data_clf)
+#data_clf_scaled$Sample <- scale(data_clf_scaled$Sample)
+#data_clf_scaled$timestamp <- scale(data_clf_scaled$timestamp)
+data_clf_scaled$X <- scale(data_clf_scaled$X)
+data_clf_scaled$Y <- scale(data_clf_scaled$Y)
+data_clf_scaled$Z <- scale(data_clf_scaled$Z)
+head(data_clf_scaled)
+```
+
+
+## Build and evaluate a classifier
+
+### Data Partitioning
+
+Train: 80 %
+Test: 20 %
+
+Used later for classification
+
+```{r}
+set.seed(7)
+
+# Create a list of 80% of the rows in the original dataset we can use for training
+train_index<-createDataPartition(data_clf$Activity, p =0.80, list = FALSE)
+
+# Select 20% of the data for testing
+test_data<-data_clf[-train_index, ]
+
+# Use the remaining 80% of data to train and validate the models
+train_data<-data_clf[train_index, ]
+```
+
+
+Used only for isolation_trees
+
+```{r}
+set.seed(7)
+
+# Create a list of 80% of the rows in the original dataset we can use for training
+train_index_iso<-createDataPartition(data_clf$Activity, p =0.80, list = FALSE)
+
+# Select 20% of the data for testing
+test_data_iso<-data_clf[-train_index_iso, ]
+
+# Use the remaining 80% of data to train and validate the models
+train_data_iso<-data_clf[train_index_iso, ]
+```
+
+
+Used to visualize the ID in plotly
+
+```{r}
+set.seed(7)
+
+# Create a list of 80% of the rows in the original dataset we can use for training
+train_index_id<-createDataPartition(motion_data_te$Activity, p =0.80, list = FALSE)
+
+# Select 20% of the data for testing
+test_data_id<-motion_data[-train_index_id, ]
+
+# Use the remaining 80% of data to train and validate the models
+train_data_id<-motion_data[train_index_id, ]
+```
+
+#### Find further outliers with isolation forest model:
+
+ntrees	-   Number of trees. Defaults to 50.
+
+```{r}
+isotree <- isolation.forest(train_data, ndim=1, ntrees=10, nthreads=1)
+isotree
+```
+
+Predict average train depth of the isolation forest:
+```{r}
+avg_depth_train <- predict(isotree, train_data_iso, type="avg_depth")
+par(train_data_iso)
+plot(train_data_iso, avg_depth_train, col="darkred",
+     main="Average isolation depth Train Data")
+```
+
+As we can see here, the average depth for the train data is at 18.29
+
+```{r}
+summary(avg_depth_train)
+```
+
+Predict average test depth of the isolation forest:
+
+```{r}
+avg_depth_test <- predict(isotree, test_data_iso, type="avg_depth")
+par(mar = test_data_iso)
+plot(test_data_iso, avg_depth_test, col="darkred",
+     main="Average isolation depth Test Data")
+```
+
+As we can see here, the average depth for the test data is at 18.187
+
+```{r}
+summary(avg_depth_test)
+```
+
+The average anomaly score for the train data is at 0.4247 or 45.10 %
+
+Link: https://www.kaggle.com/code/norealityshows/outlier-detection-with-isolation-forest-in-r
+
+```{r}
+anomaly_score_train <- predict(isotree, train_data_iso, type = "score")
+summary(anomaly_score_train)
+```
+
+Based on the anomaly score, we can find the outliers and plot the result:
+
+Here the threshold is set to 0.5
+
+If the value is close to 1 the data point is likely an anomaly
+
+if the value is smaller than 0.5, then the data point is likely to be a regular point
+
+```{r}
+#predict outliers within dataset
+train_data_iso$pred <- anomaly_score_train
+train_data_iso$outlier <- as.factor(ifelse(train_data_iso$pred >=0.5, "outlier", "normal"))
+```
+
+
+Train data with and without outliers
+```{r}
+head(train_data_iso)
+tail(train_data_iso)
+```
+
+Ggplotly with train data anomalies:
+
+
+```{r}
+Anomaly <- train_data_iso$outlier
+
+train_anomalies_x <- group_by(train_data_iso, Activity) %>%
+  ggplot(aes(x = train_data_id$timestamp, y = X, color = Anomaly, text = paste("ID:", train_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "X Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(train_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+train_anomalies_y <- group_by(train_data_iso, Activity) %>%
+  ggplot(aes(x = train_data_id$timestamp, y = Y, color = Anomaly, text = paste("ID:", train_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "Y Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(train_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+train_anomalies_z <- group_by(train_data_iso, Activity) %>%
+  ggplot(aes(x = train_data_id$timestamp, y = Z, color = Anomaly, text = paste("ID:", train_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "Z Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(train_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90)) 
+```
+
+```{r}
+ggplotly(train_anomalies_x)
+ggplotly(train_anomalies_y)
+ggplotly(train_anomalies_z)
+```
+
+
+As we can see here, there are in total 385 outliers for all two activities (threshold = 0.5):
+
+* Activity idle has 191 outliers and 965 normal data points 
+
+* Activity run has 194 outliers and 965 normal data points 
+
+
+```{r}
+train_data_anomalies <- data.frame(train_data_iso)
+
+group_by(train_data_anomalies, Activity, outlier) %>% summarize(
+  count = n()
+)
+```
+
+Further we can also print out the outlier data rows:
+
+
+```{r}
+train_data_outliers <- train_data_iso %>%filter(train_data_anomalies$outlier == "outlier")
+train_data_outliers
+```
+
+```{r}
+train_data_normal <- train_data_iso %>%filter(train_data_anomalies$outlier == "normal")
+train_data_normal
+```
+
+
+The average anomaly score for the test data is at 0.4272 or 42.72 %
+
+Link: https://www.kaggle.com/code/norealityshows/outlier-detection-with-isolation-forest-in-r
+
+```{r}
+anomaly_score_test <- predict(isotree, test_data_iso, type = "score")
+summary(anomaly_score_test)
+```
+
+
+Based on the anomaly, we can find the outliers and plot the result:
+
+```{r}
+#predict outliers within dataset
+test_data_iso$pred <- anomaly_score_test
+test_data_iso$outlier <- as.factor(ifelse(test_data_iso$pred >=0.50, "outlier", "normal"))
+```
+
+
+Test data with and without outliers
+```{r}
+head(test_data_iso)
+tail(test_data_iso)
+```
+
+Ggplotly with test data anomalies:
+
+
+```{r}
+Anomaly <- test_data_iso$outlier
+
+test_anomalies_x <- group_by(test_data_iso, Activity) %>%
+  ggplot(aes(x = test_data_id$timestamp, y = X, color = Anomaly, text = paste("ID:", test_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "X Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(test_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+test_anomalies_y <- group_by(test_data_iso, Activity) %>%
+  ggplot(aes(x = test_data_id$timestamp, y = Y, color = Anomaly, text = paste("ID:", test_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "Y Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(test_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+
+test_anomalies_z <- group_by(test_data_iso, Activity) %>%
+  ggplot(aes(x = test_data_id$timestamp, y = Z, color = Anomaly, text = paste("ID:", test_data_id$ID))) + 
+  geom_point(shape = 1, alpha = 0.8) +
+  labs( x = "Timestamp", y = "Z Axis") +
+  labs(alpha = "", colour="Legend") +
+  facet_grid(test_data_id$Creator ~ Activity) +
+  scale_color_manual(values=c("#42f548", "#f54842")) +
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90)) 
+```
+
+```{r}
+ggplotly(test_anomalies_x)
+ggplotly(test_anomalies_y)
+ggplotly(test_anomalies_z)
+```
+
+As we can see here, there are in total 107 outliers for all two activities (threshold = 0.5):
+
+* Activity idle has 63 outliers and 226 normal data points 
+
+* Activity run has 44 outliers and 245 normal data points 
+
+
+```{r}
+test_data_anomalies <- data.frame(test_data_iso)
+
+group_by(test_data_anomalies, Activity, outlier) %>% summarize(
+  count = n()
+)
+```
+
+Further we can also print out the outlier data rows:
+
+
+```{r}
+test_data_outliers <- test_data_iso %>%filter(test_data_anomalies$outlier == "outlier")
+test_data_outliers
+```
+
+```{r}
+test_data_normal <- test_data_iso %>%filter(test_data_anomalies$outlier == "normal")
+test_data_normal
+```
+
+So in total the isolation tree detected 285 outliers for the train data and 107 outliers for the test data.
+
+Compared to the boxplot analysis there are in total 492 outliers.
+
+We can also save the outliers from the sensor data for further tests.
+
+```{r}
+anomalies <- data.frame(data_clf)
+
+anomaly_score <- predict(isotree, newdata = anomalies, type = "score")
+summary(anomaly_score)
+
+#predict outliers within dataset
+anomalies$pred <- anomaly_score
+anomalies$outlier <- as.factor(ifelse(anomalies$pred >=0.50, "outlier", "normal"))
+
+outliers <- data_clf %>%filter(anomalies$outlier == "outlier")
+outliers
+
+no_outliers <- data_clf %>%filter(anomalies$outlier == "normal")
+no_outliers
+```
+
+
+```{r}
+write.csv(no_outliers, "Idle_Run_Tobias_Egger_no_outliers.csv", row.names = FALSE)
+```
+
+
+#### Train with cross validation:
+
+
+Accuracy was at first at 100 % because sample and timestamp was not removed 
+
+##### Now cross validation achieves 72.17 % for the train data
+
+```{r}
+set.seed(10)
+
+control_par <- trainControl(method = "cv", number=10)
+
+model_cv <- train(Activity~.,
+                      data=train_data, 
+                      method="rpart", 
+                      trControl = control_par,
+                      metric="Accuracy"
+                      )
+
+model_cv
+``` 
+
+```{r}
+model_cv$finalModel
+```
+
+##### Train with bootstrap achieves 76.04 % for the train data
+
+```{r}
+# train a Classification and Regression Trees (CART)
+set.seed(34437) #34056
+
+control_par <- trainControl(method = "boot", number=1)
+
+model_boot <- train(Activity~., 
+                  data=train_data, 
+                  method="rpart",
+                  trControl = control_par,
+                  metric="Accuracy")
+
+model_boot
+
+```
+
+
+```{r}
+model_boot$finalModel
+```
+
+Therefore we take the bootstrap model
+
+
+```{r}
+## Generate predictions
+y_hats_train <- predict(object=model_boot) 
+        
+## Print the accuracy
+accuracy <- mean(y_hats_train == train_data$Activity)*100
+accuracy
+```
+
+Confusion Matrix train data:
+
+951 idle were correctly classified, 448 wrong
+
+711 run were correctly classified, 205 wrong
+
+```{r}
+tab1 <- table(Predicted = y_hats_train,
+Actual = train_data$Activity)
+tab1
+sum(diag(tab1))/sum(tab1)
+```
+
+```{r}
+classified_data <- data_clf %>%filter(data_clf$Activity == y_hats_train)
+classified_data
+```
+
+
+```{r}
+plot(model_boot, main="Model Accuracies with CART")
+``` 
+
+Extract the variable importance using `varImp()` to understand which variables came out to be useful.
+
+
+```{r}
+varimp_cart <- varImp(model_boot)
+plot(varimp_cart, main="Variable Importance with CART")
+```
+
+* Decision tree for activity
+  
+```{r} 
+# Basic plot for a decision tree
+  plot(model_cv$finalModel,branch = T, margin = 0.1)
+  text(model_cv$finalModel)
+```
+
+
+##### Accuracy on testing data: 51.74946 %
+
+
+```{r}
+## Generate predictions
+y_hats_test <- predict(object=model_boot) 
+        
+## Print the accuracy
+accuracy <- mean(y_hats_test == test_data$Activity)*100
+accuracy
+```
+
+```{r}
+classified_data <- data_clf %>%filter(data_clf$Activity == y_hats_test)
+classified_data
+```
+
+
+##### Further predict data without outliers, to test if the accuracy can be increased:
+
+
+```{r}
+read_data = read.csv("Idle_Run_Tobias_Egger_no_outliers.csv")
+motion_data_te_no_outliers <- data.frame(read_data)
+```
+
+
+```{r}
+set.seed(7)
+
+# Create a list of 80% of the rows in the original dataset we can use for training
+train_index<-createDataPartition(motion_data_te_no_outliers$Activity, p =0.80, list = FALSE)
+
+# Select 20% of the data for testing
+test_data<-motion_data_te_no_outliers[-train_index, ]
+
+# Use the remaining 80% of data to train and validate the models
+train_data<-motion_data_te_no_outliers[train_index, ]
+```
+
+Cross validation achieves 72.28 % for the train data -> Only a little bit better
+
+```{r}
+set.seed(10)
+
+control_par <- trainControl(method = "cv", number=10)
+
+model_cv_iso <- train(Activity~.,
+                      data=train_data, 
+                      method="rpart", 
+                      trControl = control_par,
+                      metric="Accuracy"
+                      )
+
+model_cv_iso
+``` 
+
+Bootstrap achieves 75.03 % for the train data -> 1 % accuracy decrease
+
+```{r}
+# train a Classification and Regression Trees (CART)
+set.seed(34437) #34056
+
+control_par <- trainControl(method = "boot", number=1)
+
+model_boot_iso <- train(Activity~., 
+                  data=train_data, 
+                  method="rpart",
+                  trControl = control_par,
+                  metric="Accuracy")
+
+model_boot_iso
+
+```
+
+
+##### Test how good the model is on unlabeled data:
+
+```{r}
+read_data = read.csv("Idle_Run_Tobias_Egger_no_labels.csv")
+unlabeled_data <- data.frame(read_data)
+
+head(unlabeled_data)
+```
+
+
+```{r}
+unlabeled_data <- unlabeled_data[,!names(unlabeled_data) %in% c("ID", "Creator", "Sample", "timestamp")]
+names(unlabeled_data)
+```
+
+```{r}
+## Generate predictions
+predictions <- predict(object=model_boot, newdata = unlabeled_data) 
+```
+
+
+```{r}
+unlabeled_data$Activity = predictions
+unlabeled_data
+```
+
+
+```{r}
+write.csv(unlabeled_data, "Idle_Run_Tobias_Egger_Test_Data_Results.csv", row.names = FALSE)
+```
+
+
+Conclusion:
+
+OUtliers don't always need to be removed 
+
+  -> e.g. isotree: Threshold could be more optimized to get better results
+  
+  -> Isotree detected 285 outliers for the train data and 107 outliers for the test data
+
+Final classification model so far: bootstrap -> Achieves 76.04 % on train data and 51.74946 % on test data
+
