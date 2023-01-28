@@ -1,0 +1,400 @@
+---
+title: "R Notebook - Final Classification Short"
+output: html_notebook
+---
+
+## Used libaries:
+
+```{r}
+library(mosaic)
+library(plotly)
+library(GGally)
+library(dplyr)
+library(rpart)
+library(caret)
+library(psych)
+library(ggplot2)
+library(ggcorrplot)
+library(rela)
+```
+
+
+### 1. Read all samples and combine them
+
+```{r}
+# Delete all variables
+rm( list = ls() )
+```
+
+```{r}
+read_idle = read.csv("01_Movements/01_Idle.csv")
+idle_data <- data.frame(read_idle)
+
+read_run = read.csv("01_Movements/02_Running.csv")
+run_data <- data.frame(read_run)
+
+read_dab = read.csv("01_Movements/03_Dab.csv")
+dab_data <- data.frame(read_dab)
+
+read_siu = read.csv("01_Movements/04_Siu.csv")
+siu_data <- data.frame(read_siu)
+```
+
+Rename ID correctly:
+```{r}
+names(idle_data)[1] <- "ID"
+names(run_data)[1] <- "ID"
+names(dab_data)[1] <- "ID"
+names(siu_data)[1] <- "ID"
+```
+
+#### Combined data
+
+Overall in total there are 8985 rows
+
+So in the dab data for Orientation.X and Orientation.Z we have the wrong data type. <chr> instead of <dbl>
+
+Basically we can't scale before converting to numeric
+
+
+
+```{r}
+idle_run <- rbind(idle_data, run_data)
+irun_dab <- rbind(idle_run, dab_data)
+motion_data <- rbind(irun_dab, siu_data)
+```
+
+```{r}
+idle_run$Orientation.X <- as.numeric(idle_run$Orientation.X)
+colSums(is.na(idle_run))
+```
+
+
+
+### 2. Do some Exploratory Data Analysis (EDA) on whole data:
+```{r}
+motion_data_all <- data.frame(motion_data)
+# Remove Magnetic, because there are many NA's in it
+motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("MagneticField.X")]
+motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("MagneticField.Y")]
+motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("MagneticField.Z")]
+
+# Convert columns to correct type
+motion_data_all$Category <- as.factor(motion_data_all$Category)
+motion_data_all$Acceleration.X <- as.numeric(motion_data_all$Acceleration.X)
+motion_data_all$Orientation.X <- as.numeric(motion_data_all$Orientation.X)
+motion_data_all$Orientation.Z <- as.numeric(motion_data_all$Orientation.Z)
+```
+More NA's found after convertion
+
+```{r}
+colSums(is.na(motion_data_all))
+```
+
+Remove the NA's
+
+About 8584 rows left
+
+```{r}
+motion_data_all <- na.omit(motion_data_all)
+colSums(is.na(motion_data_all))
+```
+
+Scale the data:
+```{r}
+quant_var <- select(motion_data_all, c(6:14))
+cat_var <- select(motion_data_all, c(3))
+
+quant_var <- scale(quant_var)
+motion_data_scale <- cbind(cat_var, quant_var)
+motion_data_scale
+```
+
+
+```{r}
+motion_data_box <- select(motion_data_scale, c("Acceleration.X","Acceleration.Y","Acceleration.Z","AngularVelocity.X","AngularVelocity.Y","AngularVelocity.Z","Orientation.X","Orientation.Y","Orientation.Z"))
+boxplot(motion_data_box) +
+   scale_x_discrete(guide = guide_axis(angle = 90))
+  #geom_violin(trim = FALSE) +
+  #geom_boxplot() 
+  #theme_minimal()
+```
+
+
+
+Train with data from Ahmed, Tobias, Saghar and Ronaldo
+```{r}
+#motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias" | Author == "Saghar" | Author == "Ronaldo") #+ subset(motion_data_all, Author == "Tobias")
+#motion_data_unknown <- subset(motion_data, Author == "Regan" | Author == "Darian") # 33 %
+
+motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Regan" | Author == "Darian" | Author == "Ronaldo" | Author == "Tobias") 
+motion_data_test <- subset(motion_data_all, Author == "Saghar")
+```
+```{r}
+```
+
+
+```{r}
+# For statistics
+motion_data_all_stat <- data.frame(motion_data_all)
+# Remove unrelevant columns
+motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
+```
+
+
+Write merged cleaned data to file:
+
+```{r}
+write.csv(motion_data_all, "All Samples Clean.csv", row.names = FALSE)
+```
+
+#### Category data distribution
+
+Stacked bar chart:
+
+Seems like Darian and Ahmed have more compared to the others more motion data
+
+```{r}
+cat_count <- group_by(motion_data_all_stat, Author, Category) %>%
+  summarize(count=n())
+```
+
+```{r}
+stack_bar <- ggplot(cat_count, aes(x = Author, y = count, fill = Category)) +
+  geom_bar(stat = "identity") #+
+  #geom_text(aes(label = count), vjust = -4.5)
+
+ggplotly(stack_bar)
+```
+
+#### Correlation plot for numerical values:
+
+Threshold: 0.2 
+
+Old one: Remaining features: Acceleration.X, Acceleration.Z, Orientation.X, Orientation.Y, Orientation.Z
+
+New one: Remaining features: Acceleration.X, Acceleration.Y, Acceleration.Z, AngularVelocity.X, AngularVelocity.Y, AngularVelocity.Z
+
+We remove the orientation, since everyone had a different phone position
+
+```{r}
+motion_data_all_numeric <- data.frame(motion_data_all)
+motion_data_all_numeric <- motion_data_all_numeric[,!names(motion_data_all_numeric) %in% c("Category")]
+
+#Was for only for testing -> Darian: Everyone has different position of phone, thats why we should skip Orientation
+#motion_data_all_numeric <- motion_data_all_numeric[,!names(motion_data_all_numeric) %in% c("Orientation.X", "Orientation.Y", "Orientation.Z")]
+#motion_data_all_numeric$Category <- as.numeric(factor(motion_data_all_numeric$Category))
+#motion_data_all_numeric$Category <- as.factor(motion_data_all_numeric$Category)
+
+
+
+```
+
+
+```{r}
+# Calculate the correlation matrix of the data frame
+cor_matrix <- cor(motion_data_all_numeric)
+
+# Visualize the correlation matrix using ggcorrplot
+ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", 
+           lab = TRUE, lab_size = 3, method = "circle")
+
+```
+
+
+We use only relevant columns for the model training
+```{r}
+remove_col <- c("ID",  "Acceleration.Timestamp", "Author", "Sample", "Orientation.X", "Orientation.Y", "Orientation.Z")
+
+motion_data_part <- motion_data_part[,!names(motion_data_part) %in% remove_col]
+```
+
+
+```{r}
+#motion_data_part_numeric <- data.frame(motion_data_part)
+#motion_data_part_numeric <- motion_data_all_numeric[,!names(motion_data_all_numeric) %in% c("Category")]
+
+#idle_tobias <- subset(motion_data_tobias[1:5], Category == "Idle")
+#ggpairs(data=motion_data_all_numeric,aes(color = motion_data_all$Category), title="Motion pair plot with quantiative variables",
+#  upper = list(
+#    continuous = wrap("cor", size = 0.75)
+#  )
+#)  
+```
+
+### 3. Train on whole data with selected features:
+
+Train split: 80 %, Test split: 20 %
+
+Since the features that we selected correlate good and are relevant, we skip the angular velocity
+```{r}
+set.seed(10)
+
+# Take variables from correlation analysis
+feature_selection <- motion_data_part#[,c("Category", "Acceleration.X", "Acceleration.Y", "Acceleration.Z")]
+
+train_index_all <- createDataPartition(feature_selection$Category, p =0.80, list = FALSE)
+train_data_all<-feature_selection[train_index_all, ]
+test_data_all<-feature_selection[-train_index_all, ]
+```
+
+#### Accuracy on train data with rf: 86.91 % without orientation
+
+
+```{r}
+set.seed(6)
+# 6: 89.8 %
+control_par <- trainControl(method = "cv", number=4)
+model_rf_all <- train(Category~.,
+                      data=train_data_all, 
+                      "rf",
+                      trControl = control_par
+                      )
+
+model_rf_all
+```
+
+
+#### Accuracy on testing data with rf and cv: 86.33 % without orientation
+
+```{r}
+set.seed(6)
+## Generate predictions
+rf_all_pred_test <- predict(model_rf_all,test_data_all) 
+        
+## Print the accuracy
+accuracy <- mean(rf_all_pred_test == test_data_all$Category)*100
+accuracy
+```
+
+```{r}
+cm_test_data <- confusionMatrix(rf_all_pred_test, test_data_all$Category)
+cm_test_data
+```
+
+```{r}
+plt <- as.data.frame(cm_test_data$table)
+plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+
+rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+        geom_tile() + geom_text(aes(label=Freq)) +
+        scale_fill_gradient(low="white", high="#009194") +
+        labs(x = "Prediction",y = "Reference") +
+        scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
+        scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+        
+
+ggplotly(rf_conf_mat)
+```
+
+### 6. Now test the best model from dab on unkown data and compare accuracy
+
+
+```{r}
+remove_col <- c("ID",  "Acceleration.Timestamp", "Author", "Orientation.X", "Orientation.Y", "Orientation.Z")
+motion_data_test <- motion_data_test[,!names(motion_data_test) %in% remove_col]
+motion_data_test$Sample <- as.numeric(as.factor(motion_data_test$Sample))
+
+unique(motion_data_test$Category)
+```
+Dab: 1 - 20
+Idle: 11 - 20
+Run: 22 - 30
+Siu: 31 - 40
+
+```{r}
+inspect(motion_data_test)
+```
+
+
+
+```{r}
+list_motion_data_unknown = c()
+
+total_accuracy = 0
+for(i in 1:40){
+  print(i)
+  
+  motion_data_unknown <- subset(motion_data_test,Sample == i) # 55.76 %
+  ref <- motion_data_unknown$Category[motion_data_unknown$Sample == i]
+  motion_data_unknown <- motion_data_unknown[,!names(motion_data_unknown) %in% c("Sample")]
+  
+  motion_data_no_labels <- data.frame(motion_data_unknown)
+  names(motion_data_no_labels)[names(motion_data_no_labels) == "Category"] <- "Category"
+  motion_data_no_labels$Category <- ""
+  
+  
+  set.seed(6)
+  ## Generate predictions
+  rf_dab_pred_new <- predict(object = model_rf_all,newdata = motion_data_no_labels) 
+          
+  ## Print the accuracy
+  accuracy <- mean(rf_dab_pred_new ==  motion_data_unknown$Category )*100
+  total_accuracy = total_accuracy + accuracy
+  
+  motion_data_no_labels$Category = rf_dab_pred_new
+
+  cm_rf_all <- confusionMatrix(rf_dab_pred_new, motion_data_no_labels$Category)
+  print(cm_rf_all)
+  test <- as.data.frame(cm_rf_all$table)
+  
+  
+  print(paste(unique(ref),test$Prediction[which.max(test$Freq)], accuracy, sep = " "))
+
+  list_motion_data_unknown <- append(list_motion_data_unknown, motion_data_no_labels)
+}
+
+average_accuracy = total_accuracy / length(motion_data_test$Sample)
+
+average_accuracy
+```
+
+
+```{r}
+motion_data_no_labels$Category = rf_dab_pred_new
+motion_data_no_labels
+```
+
+```{r}
+cm_rf_all <- confusionMatrix(rf_dab_pred_new, motion_data_no_labels$Category)
+cm_rf_all
+```
+
+
+```{r}
+plt <- as.data.frame(cm_rf_all$table)
+plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+
+
+rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+        geom_tile() + geom_text(aes(label=Freq)) +
+        scale_fill_gradient(low="white", high="#009194") +
+        labs(x = "Prediction",y = "Reference") +
+        scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
+        scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+        
+
+ggplotly(rf_conf_mat)
+```
+
+
+```{r}
+data_all_pred_rf <- data.frame(motion_data_no_labels)
+data_all_pred_rf$pred_cat = rf_dab_pred_new
+
+col_order <- c("ID", "Author", "Category", "pred_cat", "Sample", "Acceleration.Timestamp", "Acceleration.X", "Acceleration.Y", "Acceleration.Z", "AngularVelocity.Z", "AngularVelocity.Z", "AngularVelocity.Z", "Orientation.X", "Orientation.Y", "Orientation.Z")
+data_all_pred_rf <- data_all_pred_rf[, col_order]
+data_all_pred_rf
+```
+
+```{r}
+write.csv(data_all_pred_rf, "03_motion_clf_model_rf_all.csv", row.names = FALSE)
+```
+
+Conclusion Prediction with random forest:
+
+Prediction on test data:  86.33 %
+
+Prediction on unknown data: 33.05 %
+
+So, the easiest way is to just use one model, train it, test it and then predict new unknown data.
