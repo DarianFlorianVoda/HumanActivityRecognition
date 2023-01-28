@@ -9,6 +9,11 @@ library(psych)
 library(ggplot2)
 library(ggcorrplot)
 library(rela)
+library(shiny)
+library(DT)
+library(plotly)
+library(caret)
+library(isotree)
 
 ### 1. Read all samples and combine them
 
@@ -136,6 +141,35 @@ train_index_all <- createDataPartition(feature_selection$Category, p =0.80, list
 train_data_all<-feature_selection[train_index_all, ]
 test_data_all<-feature_selection[-train_index_all, ]
 
+#### Accuracy on train data with rf: 86.91 % without orientation
+
+set.seed(6)
+# 6: 89.8 %
+control_par <- trainControl(method = "cv", number=4)
+model_rf_all <- train(Category~.,
+                      data=train_data_all, 
+                      "rf",
+                      trControl = control_par
+)
+
+model_rf_all
+
+
+#### Accuracy on testing data with rf and cv: 86.33 % without orientation
+
+
+set.seed(6)
+## Generate predictions
+rf_all_pred_test <- predict(model_rf_all,test_data_all) 
+
+## Print the accuracy
+accuracy <- mean(rf_all_pred_test == test_data_all$Category)*100
+accuracy
+
+cm_test_data <- confusionMatrix(rf_all_pred_test, test_data_all$Category)
+cm_test_data
+
+
 ##############
 # All charts #
 ##############
@@ -172,6 +206,21 @@ server <- function(input, output){
   output$vol_plot <- renderPlot({
     
     ggplot(cat_count, aes(x = Author, y = count, fill = Category)) +geom_bar(stat = "identity")
+  })
+  
+  # Confusion Matrix
+  output$Confusion_matrix_plot <- renderPlotly({
+    plt <- as.data.frame(cm_test_data$table)
+    plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+    rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
+      geom_tile() + geom_text(aes(label=Freq)) +
+      scale_fill_gradient(low="white", high="#009194") +
+      labs(x = "Prediction",y = "Reference") +
+      scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
+      scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+    
+    
+    ggplotly(rf_conf_mat)
   })
 }
 
@@ -242,7 +291,7 @@ ui <- dashboardPage(
                   ,status = "primary"
                   ,solidHeader = TRUE 
                   ,collapsible = TRUE ,
-                  plotOutput("test1", height = 500)),
+                  plotOutput("Confusion_matrix_plot", height = 500)),
                 
                 #Four
                 box(
