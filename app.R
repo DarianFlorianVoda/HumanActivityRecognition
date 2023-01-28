@@ -169,7 +169,8 @@ accuracy
 cm_test_data <- confusionMatrix(rf_all_pred_test, test_data_all$Category)
 cm_test_data
 
-
+plt <- as.data.frame(cm_test_data$table)
+plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
 ##############
 # All charts #
 ##############
@@ -210,8 +211,7 @@ server <- function(input, output){
   
   # Confusion Matrix
   output$Confusion_matrix_plot <- renderPlotly({
-    plt <- as.data.frame(cm_test_data$table)
-    plt$Prediction <- factor(plt$Prediction, levels=rev(levels(plt$Prediction)))
+    
     rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
       geom_tile() + geom_text(aes(label=Freq)) +
       scale_fill_gradient(low="white", high="#009194") +
@@ -291,7 +291,7 @@ ui <- dashboardPage(
                   ,status = "primary"
                   ,solidHeader = TRUE 
                   ,collapsible = TRUE ,
-                  plotOutput("Confusion_matrix_plot", height = 500)),
+                  plotlyOutput("Confusion_matrix_plot", height = 500)),
                 
                 #Four
                 box(
