@@ -119,10 +119,10 @@ motion_data_scale
 
 Train with data from Ahmed, Tobias, Saghar and Ronaldo
 ```{r}
-#motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias" | Author == "Saghar" | Author == "Ronaldo") #+ subset(motion_data_all, Author == "Tobias")
+#motion_data_train <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias" | Author == "Saghar" | Author == "Ronaldo") #+ subset(motion_data_all, Author == "Tobias")
 #motion_data_unknown <- subset(motion_data, Author == "Regan" | Author == "Darian") # 33 %
 
-motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan" | Author == "Darian" ) 
+motion_data_train <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan" | Author == "Darian" ) 
 motion_data_test <- subset(motion_data_all, Author == "Saghar" )
 ```
 
@@ -132,7 +132,7 @@ motion_data_test <- subset(motion_data_all, Author == "Saghar" )
 motion_data_all_stat <- data.frame(motion_data_plot)
 # Remove unrelevant columns
 motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
-motion_data_plot <- motion_data_plot[,!names(motion_data_plot) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
+#motion_data_plot <- motion_data_plot[,!names(motion_data_plot) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
 ```
 
 
@@ -226,33 +226,55 @@ motion_data_all_numeric
 cor_matrix <- cor(motion_data_all_numeric)
 
 # Visualize the correlation matrix using ggcorrplot
-ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", 
+plot <- ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", 
            lab = TRUE, lab_size = 3, method = "circle")
+
+ggplotly(plot)
 
 ```
 
 
-We use only relevant columns for the model training
+We use only relevant columns for the model training - So only numeric ones and the category
 ```{r}
 remove_col <- c("ID",  "Acceleration.Timestamp", "Author", "Sample", "Orientation.X", "Orientation.Y", "Orientation.Z")
 
-motion_data_part <- motion_data_part[,!names(motion_data_part) %in% remove_col]
+motion_data_train <- motion_data_train[,!names(motion_data_train) %in% remove_col]
 ```
 
 
 ```{r}
-plot_data <- data.frame(motion_data_test)
-plot_data <- plot_data[,!names(plot_data) %in% remove_col]
+plot_test <- data.frame(motion_data_test)
+plot_test <- plot_test[,!names(plot_test) %in% remove_col]
 
-motion_data_part_numeric <- data.frame(plot_data)
-motion_data_part_numeric <- motion_data_part_numeric[,!names(motion_data_part_numeric) %in% c("Category")]
+motion_data_train_numeric <- data.frame(plot_test)
+motion_data_train_numeric <- motion_data_train_numeric[,!names(motion_data_train_numeric) %in% c("Category")]
+```
 
+```{r}
 #idle_tobias <- subset(motion_data_tobias[1:5], Category == "Idle")
-ggpairs(data=motion_data_part_numeric,aes(color = plot_data$Category), title="Motion pair plot with quantiative variables",
+plot <- ggpairs(data=motion_data_train_numeric,aes(color = plot_test$Category), title="Motion pair plot with quantiative variables´for Saghar",
   upper = list(
-    continuous = wrap("cor", size = 0.75)
+    continuous = wrap("cor", size = 2.75)
   )
-)  
+) 
+
+plot
+```
+
+```{r}
+corr_data <- select(subset(motion_data_all_stat, Author == "Saghar"), c("acceleration", "angularVelocity"))
+```
+
+
+```{r}
+#idle_tobias <- subset(motion_data_tobias[1:5], Category == "Idle")
+plot <- ggpairs(data=corr_data,aes(color = plot_test$Category), title="Motion pair plot with acceleration and angular velocity",
+  upper = list(
+    continuous = wrap("cor", size = 2.75)
+  )
+) 
+
+plot
 ```
 
 #### Basic plot of acceleration and angular velocity for scaled data
@@ -260,7 +282,8 @@ ggpairs(data=motion_data_part_numeric,aes(color = plot_data$Category), title="Mo
 ```{r}
 motion_data_box <- select(motion_data_scale, c("Acceleration.X","Acceleration.Y","Acceleration.Z","AngularVelocity.X","AngularVelocity.Y","AngularVelocity.Z"))
 boxplot(motion_data_box) +
-   scale_x_discrete(guide = guide_axis(angle = 90))
+   #scale_x_discrete(guide = guide_axis(angle = 90)) +
+  theme(axis.text.x = element_text(angle = 45))
   #geom_violin(trim = FALSE) +
   #geom_boxplot() 
   #theme_minimal()
@@ -300,8 +323,10 @@ ggtitle("Boxplot of AngularVelocity.X w.r.t Authors") +
 theme(plot.title = element_text(hjust = 0.5))
 ```
 
+#### Timestamp plot for acceleration:
+
 ```{r pressure, echo=FALSE, out.width = '100%'}
-knitr::include_graphics("MeetPenguins.PNG")
+knitr::include_graphics("acceleration_timestamp.PNG")
 ```
 
 #### Try to plot the timestamp:
@@ -369,7 +394,7 @@ Since the features that we selected correlate good and are relevant, we skip the
 set.seed(10)
 
 # Take variables from correlation analysis
-feature_selection <- motion_data_part#[,c("Category", "Acceleration.X", "Acceleration.Y", "Acceleration.Z")]
+feature_selection <- motion_data_train#[,c("Category", "Acceleration.X", "Acceleration.Y", "Acceleration.Z")]
 
 train_index_all <- createDataPartition(feature_selection$Category, p =0.80, list = FALSE)
 train_data_all<-feature_selection[train_index_all, ]
@@ -407,8 +432,8 @@ set.seed(6)
 rf_all_pred_test <- predict(model_rf_all,test_data_all) 
         
 ## Print the accuracy
-accuracy <- mean(rf_all_pred_test == test_data_all$Category)*100
-accuracy
+accuracy_rf_test <- mean(rf_all_pred_test == test_data_all$Category)*100
+accuracy_rf_test
 ```
 
 ```{r}
@@ -467,7 +492,7 @@ list_motion_data_unknown = c()
 
 total_accuracy <- 0
 sample_accuracy <- 0
-correct_samples <- 0
+correct_samples_rf <- 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -494,7 +519,7 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   #print(cm_rf_all)
   test <- as.data.frame(cm_rf_all$table)
   if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
-    correct_samples <- correct_samples  + 1
+    correct_samples_rf <- correct_samples_rf  + 1
   }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
@@ -505,11 +530,11 @@ for(i in 1:length(unique(motion_data_test$Sample))){
 print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
-print(paste("Accuracy over all samples: ", sample_accuracy))
+sample_accuracy_rf <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy_rf))
 
-avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
-print(paste("Accuracy of correct samples: ", avg_acc * 100))
+avg_acc_rf <- correct_samples_rf / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc_rf * 100))
 ```
 
 #### Accuracy on train data with knn: 77.29 % without orientation
@@ -543,8 +568,8 @@ set.seed(6)
 knn_all_pred_test <- predict(model_knn,test_data_all) 
         
 ## Print the accuracy
-accuracy <- mean(knn_all_pred_test == test_data_all$Category)*100
-accuracy
+accuracy_knn_test <- mean(knn_all_pred_test == test_data_all$Category)*100
+accuracy_knn_test
 ```
 
 ```{r}
@@ -600,7 +625,7 @@ In total we have an avg accuracy of 60 %
 ```{r}
 total_accuracy <- 0
 sample_accuracy <- 0
-correct_samples <- 0
+correct_samples_knn <- 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -628,7 +653,7 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   test <- as.data.frame(cm_rf_all$table)
   
   if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
-    correct_samples <- correct_samples  + 1
+    correct_samples_knn <- correct_samples_knn  + 1
   }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
@@ -637,11 +662,11 @@ for(i in 1:length(unique(motion_data_test$Sample))){
 print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
-print(paste("Accuracy over all samples: ", sample_accuracy))
+sample_accuracy_knn <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy_knn))
 
-avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
-print(paste("Accuracy of correct samples: ", avg_acc * 100))
+avg_acc_knn <- correct_samples_knn / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc_knn * 100))
 
 ```
 
@@ -682,8 +707,8 @@ set.seed(6)
 rpart_all_pred_test <- predict(model_rpart,test_data_all) 
         
 ## Print the accuracy
-accuracy <- mean(rpart_all_pred_test == test_data_all$Category)*100
-accuracy
+accuracy_rpart_test <- mean(rpart_all_pred_test == test_data_all$Category)*100
+accuracy_rpart_test
 ```
 
 ```{r}
@@ -739,7 +764,9 @@ In total we have an avg accuracy of 60 %
 ```{r}
 total_accuracy <- 0
 sample_accuracy <- 0
-correct_samples <- 0
+correct_samples_rpart <- 0
+
+
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -766,7 +793,7 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   #print(cm_rf_all)
   test <- as.data.frame(cm_rf_all$table)
   if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
-    correct_samples <- correct_samples  + 1
+    correct_samples_rpart <- correct_samples_rpart  + 1
   }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
@@ -775,51 +802,69 @@ for(i in 1:length(unique(motion_data_test$Sample))){
 print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
-print(paste("Accuracy over all samples: ", sample_accuracy))
+sample_accuracy_rpart <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy_rpart))
 
-avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
-print(paste("Accuracy of correct samples: ", avg_acc * 100))
+avg_acc_rpart <- correct_samples_rpart / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc_rpart * 100))
 ```
 
+#### Model results:
+```{r}
+rf <- paste(correct_samples_rf, " out of ", length(unique(motion_data_test$Sample)))
+knn <- paste(correct_samples_knn, " out of ", length(unique(motion_data_test$Sample)))
+rpart <- paste(correct_samples_rpart, " out of ", length(unique(motion_data_test$Sample)))
 
 
+results_models <- data.frame(
+  Model = c("Random_forest", "KNN", "Rpart"),
+  Train = c(round(mean(model_rf_all$results$Accuracy),3) * 100, round(mean(model_knn$results$Accuracy),3) * 100, round(mean(model_rpart$results$Accuracy),3) * 100),
+  #Test = c(accuracy_rf_test, accuracy_knn_test, accuracy_rpart_test),
+  
+  Test = c(sample_accuracy_rf, sample_accuracy_knn, sample_accuracy_rpart),
+  "." = c("", "", ""),
+  Correct_Samples_Pred = c(rf, knn, rpart)
+)
 
-This was used for Lunges:
+results_models 
+```
 
-Good correlation between:
+#### Rpart results:
+```{r}
+results_rpart <- data.frame(
+  Category = c("Idle", "Running", "Lunge", "Siu"),
+  Nr_Samples = c(10, 10, 10, 10),
+  Correct_Pred = c(10,0,1,9)
+  # Train = c(round(mean(model_rf_all$results$Accuracy),3) * 100, round(mean(model_knn$results$Accuracy),3) * 100, round(mean(model_rpart$results$Accuracy),3) * 100),
+  # #Test = c(accuracy_rf_test, accuracy_knn_test, accuracy_rpart_test),
+  # 
+  # Test = c(sample_accuracy_rf, sample_accuracy_knn, sample_accuracy_rpart),
+  # "." = c("", "", ""),
+  # Correct_Samples_Pred = c(rf, knn, rpart)
+)
 
-* Orientation.X and Orientation.Y with 0.56
+results_rpart
+```
 
-* Orientation.Z and Orientation.Y with 0.48
+#### Random forest results:
+```{r}
+results_randomforest <- data.frame(
+  Category = c("Idle", "Running", "Lunge", "Siu"),
+  Nr_Samples = c(10, 10, 10, 10),
+  Correct_Pred = c(6,10,10,9)
+)
 
-* Category and Orientation.Y with 0.43
+results_randomforest
+```
 
-* Orientation.Z and Orientation.X with 0.54
+#### KNN results:
+```{r}
+results_knn <- data.frame(
+  Category = c("Idle", "Running", "Lunge", "Siu"),
+  Nr_Samples = c(10, 10, 10, 10),
+  Correct_Pred = c(9,10,10,10)
+)
 
-Angular Velocity is quite independent compared to other variables, but we still included it, to determine the activities better.
-
-Since everyone used another phone position, we removed the orientation, because it also didn't really improve the model accuracy.
-
-We also remove magnetic field, because there were a lot of NA's and even by using data were we didn't have NA's it, the models didn't really improve with it. About 40 % on unseen data.
-
-In total we tried three different models: Random forest, KNN and Rpart (Decision Tree).
-
-Accuracies:
-
-* Prediction with random forest: Train data: 81.56 %, Test data: 83.37 % Unseen data: 60.48 %
-
-* Prediction with knn: Train data: 77.29 %, Test data: 82.08 % Unseen data: 59.52 %
-
-* Prediction with rpart: Train data: 55.69 %, Test data: 52.07 % Unseen data: 48.50 %
-
-Classification: 
-
-* The problem is that the models do not recognize Lunges at all. 
-
-* The reason for that is, because Lunges is kinda included into Siu.
-
-* That's why they also missclassified Lunges with Siu.
-
-So, we decided to use another acitivity called lunge and train test the models.
+results_knn
+```
 
