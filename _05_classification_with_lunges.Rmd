@@ -104,8 +104,11 @@ colSums(is.na(motion_data_all))
 
 Scale the data:
 ```{r}
-quant_var <- select(motion_data_all, c(6:14))
-cat_var <- select(motion_data_all, c(3))
+motion_data_all$acceleration <- sqrt(motion_data_all$Acceleration.X^2 + motion_data_all$Acceleration.Y^2 + motion_data_all$Acceleration.Z^2)
+motion_data_all$angularVelocity <- sqrt(motion_data_all$AngularVelocity.X^2 + motion_data_all$AngularVelocity.Y^2 + motion_data_all$AngularVelocity.Z^2)
+
+quant_var <- select(motion_data_all, c(6:16))
+cat_var <- select(motion_data_all, c(2:3))
 
 quant_var <- scale(quant_var)
 motion_data_scale <- cbind(cat_var, quant_var)
@@ -120,6 +123,38 @@ boxplot(motion_data_box) +
   #geom_violin(trim = FALSE) +
   #geom_boxplot() 
   #theme_minimal()
+```
+
+
+```{r}
+#### PAIR PLOT ####
+motion_data_box <- data.frame(motion_data_all)
+motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "Orientation.X", "Orientation.Y", "Orientation.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z")
+motion_data_box$Acceleration = sqrt(motion_data_box$Acceleration.X^2 + motion_data_box$Acceleration.Z^2 + motion_data_box$Acceleration.Y^2)
+motion_data_box$Orientation = sqrt(motion_data_box$Orientation.X^2 + motion_data_box$Orientation.Y^2 + motion_data_box$Orientation.Z^2)
+motion_data_box$AngularVelocity = sqrt(motion_data_box$AngularVelocity.X^2 + motion_data_box$AngularVelocity.Y^2 + motion_data_box$AngularVelocity.Z^2)
+pairs(motion_data_box %>% select("Acceleration", "Orientation", "AngularVelocity"))
+
+#### CORRELATION PLOT ####
+corPlot(motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "Orientation.X", "Orientation.Y", "Orientation.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z"), cl.pos = 'n') 
+corPlot(motion_data_box %>% select("Acceleration", "Orientation", "AngularVelocity"))
+
+
+## Distribution of each movement added by the Author#### DENSITY PLOT #####
+ggplot(motion_data_box, aes(x=Author, fill=Category)) +
+geom_density() +
+ggtitle("Distribution of Movements") +
+theme(plot.title = element_text(hjust = 0.5)) + facet_wrap(~Author, ncol = 3)
+# geom_vline(data=mu, aes(xintercept=grp.mean, color=sex),
+# linetype="dashed")
+
+
+#### BOXPLOT ####
+ggplot(motion_data_box, aes(x = Author, y = Orientation.X, fill = Category)) +
+geom_boxplot(outlier.colour="red", outlier.shape=1,
+ outlier.size=4) +
+ggtitle("Boxplot of Orientation.X w.r.t Authors") +
+theme(plot.title = element_text(hjust = 0.5))
 ```
 
 
@@ -169,12 +204,72 @@ stack_bar <- ggplot(cat_count, aes(x = Author, y = count, fill = Category)) +
 
 ggplotly(stack_bar)
 ```
-```{r}
 
-ggplot(cat_count, aes(x=Author, y=count, fill=Category)) +
-  #geom_histogram(bins=(sqrt(length(cat_count$Category))),fill="white",color="black",aes(y=..density..)) +  
-  geom_density(alpha=.3) #+
-  #facet_grid()
+#### Density Plots for acceleration and angular velocity
+
+
+```{r}
+categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed")
+
+for (i in categories){
+  test <- subset(motion_data_all_stat, Author == i)
+  
+  plot <- ggplot(test, aes(x=acceleration, fill=Category)) +
+    #geom_histogram(bins=(sqrt(length(cat_count$Category))),fill="white",color="black",aes(y=..density..)) +  
+    geom_density(alpha=.3) +
+    facet_grid(.~Author) 
+    #scale_x_continuous(limits=c(-2.5, 8), expand=c(0,0))
+  print(plot)
+}
+```
+
+```{r}
+categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed")
+
+for (i in categories){
+  test <- subset(motion_data_all_stat, Author == i & Category == c("Lunge", "Running", "Siu"))
+  
+  plot <- ggplot(test, aes(x=acceleration, fill=Category)) +
+    #geom_histogram(bins=(sqrt(length(cat_count$Category))),fill="white",color="black",aes(y=..density..)) +  
+    geom_density(alpha=.3) +
+    facet_grid(.~Author) 
+    #scale_x_continuous(limits=c(-2.5, 8), expand=c(0,0))
+  print(plot)
+}
+```
+
+
+
+
+```{r}
+library(lubridate)
+density_data <- data.frame(motion_data_all_stat)
+
+# convert character to POSIXct
+density_data$timestamp <- as.POSIXct(density_data$Acceleration.Timestamp/1000, origin="1970-01-01")
+# extract hour and minute:
+density_data$time <- hms::hms(second(density_data$Acceleration.Timestamp), minute(density_data$Acceleration.Timestamp), hour(density_data$Acceleration.Timestamp))  
+# convert to POSIXct again since ggplot does not work with class hms.
+density_data$time <- as.POSIXct(density_data$time)
+density_data$date <-as.Date(as.POSIXct(density_data$Acceleration.Timestamp, origin="1970-01-01"))
+density_data
+```
+
+
+```{r}
+# Visualize the acceleration measurements over time
+plot(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Y, type = "l")
+lines(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Z, col = "red")
+legend("topright", c( "Acceleration Y", "Acceleration Z"), lty = 1, col = c("black", "red"))
+```
+
+```{r}
+run_plot <- group_by(run_activity, Activity) %>%
+  ggplot(aes(x=timestamp)) +
+  labs( x = "Timestamp", y = "Acceleration") +
+  geom_line(aes(y = X), color="dark green", alpha = 0.8) +
+  geom_line(aes(y = Y), color="light blue", alpha = 0.8) +
+  geom_line(aes(y = Z), color="dark orange", alpha = 0.8) 
 ```
 
 #### Correlation plot for numerical values:
