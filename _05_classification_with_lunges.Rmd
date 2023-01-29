@@ -29,16 +29,16 @@ rm( list = ls() )
 ```
 
 ```{r}
-read_idle = read.csv("02_Lunges/01_Idle.csv")
+read_idle = read.csv("03_Lunges_with_Dari/01_Idle.csv")
 idle_data <- data.frame(read_idle)
 
-read_run = read.csv("02_Lunges/02_Running.csv")
+read_run = read.csv("03_Lunges_with_Dari/02_Running.csv")
 run_data <- data.frame(read_run)
 
-read_lunge= read.csv("02_Lunges/03_Lunge.csv")
+read_lunge= read.csv("03_Lunges_with_Dari/03_Lunge.csv")
 lunge_data <- data.frame(read_lunge)
 
-read_siu = read.csv("02_Lunges/04_Siu.csv")
+read_siu = read.csv("03_Lunges_with_Dari/04_Siu.csv")
 siu_data <- data.frame(read_siu)
 ```
 
@@ -54,7 +54,7 @@ names(siu_data)[1] <- "ID"
 
 Overall in total there are 8985 rows
 
-So in the dab data for Orientation.X and Orientation.Z we have the wrong data type. <chr> instead of <dbl>
+So in the Lunges data for Orientation.X and Orientation.Z we have the wrong data type. <chr> instead of <dbl>
 
 Basically we can't scale before converting to numeric
 
@@ -104,11 +104,12 @@ colSums(is.na(motion_data_all))
 
 Scale the data:
 ```{r}
-motion_data_all$acceleration <- sqrt(motion_data_all$Acceleration.X^2 + motion_data_all$Acceleration.Y^2 + motion_data_all$Acceleration.Z^2)
-motion_data_all$angularVelocity <- sqrt(motion_data_all$AngularVelocity.X^2 + motion_data_all$AngularVelocity.Y^2 + motion_data_all$AngularVelocity.Z^2)
+motion_data_plot <- data.frame(motion_data_all)
+motion_data_plot$acceleration <- sqrt(motion_data_plot$Acceleration.X^2 + motion_data_plot$Acceleration.Y^2 + motion_data_plot$Acceleration.Z^2)
+motion_data_plot$angularVelocity <- sqrt(motion_data_plot$AngularVelocity.X^2 + motion_data_plot$AngularVelocity.Y^2 + motion_data_plot$AngularVelocity.Z^2)
 
-quant_var <- select(motion_data_all, c(6:16))
-cat_var <- select(motion_data_all, c(2:3))
+quant_var <- select(motion_data_plot, c(6:16))
+cat_var <- select(motion_data_plot, c(2:3))
 
 quant_var <- scale(quant_var)
 motion_data_scale <- cbind(cat_var, quant_var)
@@ -116,67 +117,22 @@ motion_data_scale
 ```
 
 
-```{r}
-motion_data_box <- select(motion_data_scale, c("Acceleration.X","Acceleration.Y","Acceleration.Z","AngularVelocity.X","AngularVelocity.Y","AngularVelocity.Z"))
-boxplot(motion_data_box) +
-   scale_x_discrete(guide = guide_axis(angle = 90))
-  #geom_violin(trim = FALSE) +
-  #geom_boxplot() 
-  #theme_minimal()
-```
-
-
-```{r}
-#### PAIR PLOT ####
-motion_data_box <- data.frame(motion_data_all)
-motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "Orientation.X", "Orientation.Y", "Orientation.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z")
-motion_data_box$Acceleration = sqrt(motion_data_box$Acceleration.X^2 + motion_data_box$Acceleration.Z^2 + motion_data_box$Acceleration.Y^2)
-motion_data_box$Orientation = sqrt(motion_data_box$Orientation.X^2 + motion_data_box$Orientation.Y^2 + motion_data_box$Orientation.Z^2)
-motion_data_box$AngularVelocity = sqrt(motion_data_box$AngularVelocity.X^2 + motion_data_box$AngularVelocity.Y^2 + motion_data_box$AngularVelocity.Z^2)
-pairs(motion_data_box %>% select("Acceleration", "Orientation", "AngularVelocity"))
-
-#### CORRELATION PLOT ####
-corPlot(motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "Orientation.X", "Orientation.Y", "Orientation.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z"), cl.pos = 'n') 
-corPlot(motion_data_box %>% select("Acceleration", "Orientation", "AngularVelocity"))
-
-
-## Distribution of each movement added by the Author#### DENSITY PLOT #####
-ggplot(motion_data_box, aes(x=Author, fill=Category)) +
-geom_density() +
-ggtitle("Distribution of Movements") +
-theme(plot.title = element_text(hjust = 0.5)) + facet_wrap(~Author, ncol = 3)
-# geom_vline(data=mu, aes(xintercept=grp.mean, color=sex),
-# linetype="dashed")
-
-
-#### BOXPLOT ####
-ggplot(motion_data_box, aes(x = Author, y = Orientation.X, fill = Category)) +
-geom_boxplot(outlier.colour="red", outlier.shape=1,
- outlier.size=4) +
-ggtitle("Boxplot of Orientation.X w.r.t Authors") +
-theme(plot.title = element_text(hjust = 0.5))
-```
-
-
-
 Train with data from Ahmed, Tobias, Saghar and Ronaldo
 ```{r}
 #motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias" | Author == "Saghar" | Author == "Ronaldo") #+ subset(motion_data_all, Author == "Tobias")
 #motion_data_unknown <- subset(motion_data, Author == "Regan" | Author == "Darian") # 33 %
 
-motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan") 
-motion_data_test <- subset(motion_data_all, Author == "Saghar")
+motion_data_part <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan" | Author == "Darian" ) 
+motion_data_test <- subset(motion_data_all, Author == "Saghar" )
 ```
 
-```{r}
-colSums(is.na(motion_data_part))
-```
 
 ```{r}
 # For statistics
-motion_data_all_stat <- data.frame(motion_data_all)
+motion_data_all_stat <- data.frame(motion_data_plot)
 # Remove unrelevant columns
 motion_data_all <- motion_data_all[,!names(motion_data_all) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
+motion_data_plot <- motion_data_plot[,!names(motion_data_plot) %in% c("ID", "Acceleration.Timestamp", "Author", "Sample")]
 ```
 
 
@@ -207,9 +163,8 @@ ggplotly(stack_bar)
 
 #### Density Plots for acceleration and angular velocity
 
-
 ```{r}
-categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed")
+categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed", "Darian")
 
 for (i in categories){
   test <- subset(motion_data_all_stat, Author == i)
@@ -224,10 +179,10 @@ for (i in categories){
 ```
 
 ```{r}
-categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed")
+categories <- c("Tobias", "Saghar", "Ronaldo", "Regan", "Ahmed", "Darian")
 
 for (i in categories){
-  test <- subset(motion_data_all_stat, Author == i & Category == c("Lunge", "Running", "Siu"))
+  test <- subset(motion_data_all_stat, Author == i & Category == c("Lunges", "Running", "Siu"))
   
   plot <- ggplot(test, aes(x=acceleration, fill=Category)) +
     #geom_histogram(bins=(sqrt(length(cat_count$Category))),fill="white",color="black",aes(y=..density..)) +  
@@ -238,39 +193,6 @@ for (i in categories){
 }
 ```
 
-
-
-
-```{r}
-library(lubridate)
-density_data <- data.frame(motion_data_all_stat)
-
-# convert character to POSIXct
-density_data$timestamp <- as.POSIXct(density_data$Acceleration.Timestamp/1000, origin="1970-01-01")
-# extract hour and minute:
-density_data$time <- hms::hms(second(density_data$Acceleration.Timestamp), minute(density_data$Acceleration.Timestamp), hour(density_data$Acceleration.Timestamp))  
-# convert to POSIXct again since ggplot does not work with class hms.
-density_data$time <- as.POSIXct(density_data$time)
-density_data$date <-as.Date(as.POSIXct(density_data$Acceleration.Timestamp, origin="1970-01-01"))
-density_data
-```
-
-
-```{r}
-# Visualize the acceleration measurements over time
-plot(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Y, type = "l")
-lines(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Z, col = "red")
-legend("topright", c( "Acceleration Y", "Acceleration Z"), lty = 1, col = c("black", "red"))
-```
-
-```{r}
-run_plot <- group_by(run_activity, Activity) %>%
-  ggplot(aes(x=timestamp)) +
-  labs( x = "Timestamp", y = "Acceleration") +
-  geom_line(aes(y = X), color="dark green", alpha = 0.8) +
-  geom_line(aes(y = Y), color="light blue", alpha = 0.8) +
-  geom_line(aes(y = Z), color="dark orange", alpha = 0.8) 
-```
 
 #### Correlation plot for numerical values:
 
@@ -295,6 +217,9 @@ motion_data_all_numeric <- motion_data_all_numeric[,!names(motion_data_all_numer
 
 ```
 
+```{r}
+motion_data_all_numeric
+```
 
 ```{r}
 # Calculate the correlation matrix of the data frame
@@ -329,8 +254,90 @@ ggpairs(data=motion_data_part_numeric,aes(color = plot_data$Category), title="Mo
   )
 )  
 ```
-```{r}
 
+#### Basic plot of acceleration and angular velocity for scaled data
+
+```{r}
+motion_data_box <- select(motion_data_scale, c("Acceleration.X","Acceleration.Y","Acceleration.Z","AngularVelocity.X","AngularVelocity.Y","AngularVelocity.Z"))
+boxplot(motion_data_box) +
+   scale_x_discrete(guide = guide_axis(angle = 90))
+  #geom_violin(trim = FALSE) +
+  #geom_boxplot() 
+  #theme_minimal()
+```
+
+#### Plots from Darian:
+```{r}
+#### PAIR PLOT ####
+motion_data_box <- data.frame(motion_data_all_stat)
+motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z")
+motion_data_box$Acceleration = sqrt(motion_data_box$Acceleration.X^2 + motion_data_box$Acceleration.Z^2 + motion_data_box$Acceleration.Y^2)
+motion_data_box$Orientation = sqrt(motion_data_box$Orientation.X^2 + motion_data_box$Orientation.Y^2 + motion_data_box$Orientation.Z^2)
+motion_data_box$AngularVelocity = sqrt(motion_data_box$AngularVelocity.X^2 + motion_data_box$AngularVelocity.Y^2 + motion_data_box$AngularVelocity.Z^2)
+pairs(motion_data_box %>% select("Acceleration", "AngularVelocity"))
+
+#### CORRELATION PLOT ####
+corPlot(motion_data_box %>% select("Acceleration.X", "Acceleration.Y", "Acceleration.Z", "AngularVelocity.X", "AngularVelocity.Y", "AngularVelocity.Z")) +
+theme(axis.text.x = element_text(angle = 90))
+corPlot(motion_data_box %>% select("Acceleration", "AngularVelocity"))
+
+
+## Distribution of each movement added by the Author#### DENSITY PLOT #####
+ggplot(motion_data_box, aes(x=Author, fill=Category)) +
+geom_density() +
+ggtitle("Distribution of Movements") +
+theme(plot.title = element_text(hjust = 0.5)) + facet_wrap(~Author, ncol = 3) +
+  theme(axis.text.x = element_text(angle = 90))
+# geom_vline(data=mu, aes(xintercept=grp.mean, color=sex),
+# linetype="dashed")
+
+
+#### BOXPLOT ####
+ggplot(motion_data_box, aes(x = Author, y = AngularVelocity.X, fill = Category)) +
+geom_boxplot(outlier.colour="red", outlier.shape=1,
+ outlier.size=4) +
+ggtitle("Boxplot of AngularVelocity.X w.r.t Authors") +
+theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r pressure, echo=FALSE, out.width = '100%'}
+knitr::include_graphics("MeetPenguins.PNG")
+```
+
+#### Try to plot the timestamp:
+
+```{r}
+#library(lubridate)
+#density_data <- data.frame(motion_data_all_stat)
+
+# convert character to POSIXct
+#density_data$timestamp <- as.POSIXct(density_data$Acceleration.Timestamp/1000, origin="1970-01-01")
+# extract hour and minute:
+#density_data$time <- hms::hms(second(density_data$Acceleration.Timestamp), minute(density_data$Acceleration.Timestamp), hour(density_data$Acceleration.Timestamp))  
+# convert to POSIXct again since ggplot does not work with class hms.
+#density_data$time <- as.POSIXct(density_data$time)
+#density_data$date <-as.Date(as.POSIXct(density_data$Acceleration.Timestamp, origin="1970-01-01"))
+#density_data
+```
+
+
+```{r}
+# Visualize the acceleration measurements over time
+#plot(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Y, type = "l")
+#lines(motion_data_all_test$Acceleration.Timestamp, motion_data_all_test$Acceleration.Z, col = "red")
+#legend("topright", c( "Acceleration Y", "Acceleration Z"), lty = 1, col = c("black", "red"))
+```
+
+```{r}
+#run_plot <- group_by(run_activity, Activity) %>%
+##  ggplot(aes(x=timestamp)) +
+#  labs( x = "Timestamp", y = "Acceleration") +
+#  geom_line(aes(y = X), color="dark green", alpha = 0.8) +
+#  geom_line(aes(y = Y), color="light blue", alpha = 0.8) +
+#  geom_line(aes(y = Z), color="dark orange", alpha = 0.8) 
+```
+
+```{r}
 remove_col <- c("ID",  "Author", "Sample", "Orientation.X", "Orientation.Y", "Orientation.Z")
 idle_activity = subset(motion_data, Category == "Running" & Author == "Tobias")
 idle_activity <- idle_activity[,!names(idle_activity) %in% remove_col]
@@ -340,8 +347,6 @@ idle_activity <- idle_activity[,!names(idle_activity) %in% remove_col]
 ```
 
 ```{r}
-
-
 idle_plot <- group_by(idle_activity, Category) %>%
   ggplot(aes(x=Acceleration.Timestamp)) +
   labs( x = "Timestamp", y = "Acceleration") +
@@ -351,8 +356,9 @@ idle_plot <- group_by(idle_activity, Category) %>%
 ```
 
 ```{r}
-ggplotly(idle_plot)
+#ggplotly(idle_plot)
 ```
+
 
 ### 3. Train on whole data with selected features:
 
@@ -418,14 +424,14 @@ rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
         geom_tile() + geom_text(aes(label=Freq)) +
         scale_fill_gradient(low="white", high="#009194") +
         labs(x = "Prediction",y = "Reference") +
-        scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
-        scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+        scale_y_discrete(labels=c("Idle","Lunges","Running","Siu")) +
+        scale_x_discrete(labels=c("Siu", "Running", "Lunges", "Idle")) 
         
 
 ggplotly(rf_conf_mat)
 ```
 
-### 6. Now test the best model from dab on unkown data and compare accuracy
+### 6. Now test the best model from Lunges on unkown data and compare accuracy
 
 
 
@@ -436,7 +442,7 @@ motion_data_test$Sample <- as.numeric(as.factor(motion_data_test$Sample))
 
 unique(motion_data_test$Category)
 ```
-Dab: 1 - 20
+Lunges: 1 - 20
 Idle: 11 - 20
 Run: 22 - 30
 Siu: 31 - 40
@@ -445,7 +451,7 @@ Siu: 31 - 40
 inspect(motion_data_test)
 ```
 
-Dab is not recognized at all: 10/10 are missclassified
+Lunges is not recognized at all: 10/10 are missclassified
 
 Idle: 10 / 10 Samples with at least 70 % correct
 
@@ -455,11 +461,13 @@ Siu: 9 / 10 Samples with at least 50 % correct
 
 In total we have an avg accuracy of 60 %
 
+
 ```{r}
 list_motion_data_unknown = c()
 
 total_accuracy <- 0
-average_accuracy <- 0
+sample_accuracy <- 0
+correct_samples <- 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -474,27 +482,34 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   
   set.seed(6)
   ## Generate predictions
-  rf_dab_pred_new <- predict(object = model_rf_all,newdata = motion_data_no_labels) 
+  rf_Lunges_pred_new <- predict(object = model_rf_all,newdata = motion_data_no_labels) 
           
   ## Print the accuracy
-  accuracy <- mean(rf_dab_pred_new ==  motion_data_unknown$Category )*100
+  accuracy <- mean(rf_Lunges_pred_new ==  motion_data_unknown$Category )*100
   total_accuracy <- total_accuracy + accuracy
   
-  motion_data_no_labels$Category = rf_dab_pred_new
+  motion_data_no_labels$Category = rf_Lunges_pred_new
 
-  cm_rf_all <- confusionMatrix(rf_dab_pred_new, motion_data_no_labels$Category)
+  cm_rf_all <- confusionMatrix(rf_Lunges_pred_new, motion_data_no_labels$Category)
   #print(cm_rf_all)
   test <- as.data.frame(cm_rf_all$table)
-  
+  if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
+    correct_samples <- correct_samples  + 1
+  }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
 
   list_motion_data_unknown <- append(list_motion_data_unknown, motion_data_no_labels)
 }
 
-average_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-print(paste("AVG Accuracy: ", average_accuracy))
+sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy))
+
+avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc * 100))
 ```
 
 #### Accuracy on train data with knn: 77.29 % without orientation
@@ -545,14 +560,14 @@ rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
         geom_tile() + geom_text(aes(label=Freq)) +
         scale_fill_gradient(low="white", high="#009194") +
         labs(x = "Prediction",y = "Reference") +
-        scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
-        scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+        scale_y_discrete(labels=c("Idle","Lunges","Running","Siu")) +
+        scale_x_discrete(labels=c("Siu", "Running", "Lunges", "Idle"))  
         
 
 ggplotly(rf_conf_mat)
 ```
 
-### 6. Now test the best model from dab on unkown data and compare accuracy
+### 6. Now test the best model from Lunges on unkown data and compare accuracy
 
 
 
@@ -563,7 +578,7 @@ motion_data_test$Sample <- as.numeric(as.factor(motion_data_test$Sample))
 
 unique(motion_data_test$Category)
 ```
-Dab: 1 - 20
+Lunges: 1 - 20
 Idle: 11 - 20
 Run: 22 - 30
 Siu: 31 - 40
@@ -572,7 +587,7 @@ Siu: 31 - 40
 inspect(motion_data_test)
 ```
 
-Dab is not recognized at all: 10/10 are missclassified
+Lunges is not recognized at all: 10/10 are missclassified
 
 Idle: 10 / 10 Samples with at least 70 % correct
 
@@ -584,7 +599,8 @@ In total we have an avg accuracy of 60 %
 
 ```{r}
 total_accuracy <- 0
-average_accuracy <- 0
+sample_accuracy <- 0
+correct_samples <- 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -611,13 +627,22 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   #print(cm_rf_all)
   test <- as.data.frame(cm_rf_all$table)
   
+  if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
+    correct_samples <- correct_samples  + 1
+  }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
 }
 
-average_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-average_accuracy
+sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy))
+
+avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc * 100))
+
 ```
 
 #### Accuracy on train data with rpart: 55.69 % without orientation
@@ -674,8 +699,8 @@ rf_conf_mat <- ggplot(plt, aes(Prediction,Reference, fill= Freq)) +
         geom_tile() + geom_text(aes(label=Freq)) +
         scale_fill_gradient(low="white", high="#009194") +
         labs(x = "Prediction",y = "Reference") +
-        scale_y_discrete(labels=c("Dab","Idle","Running","Siu")) +
-        scale_x_discrete(labels=c("Siu", "Running", "Idle", "Dab")) 
+        scale_y_discrete(labels=c("Idle","Lunges","Running","Siu")) +
+        scale_x_discrete(labels=c("Siu", "Running", "Lunges", "Idle")) 
         
 
 ggplotly(rf_conf_mat)
@@ -692,7 +717,7 @@ motion_data_test$Sample <- as.numeric(as.factor(motion_data_test$Sample))
 
 unique(motion_data_test$Category)
 ```
-Dab: 1 - 20
+Lunges: 1 - 20
 Idle: 11 - 20
 Run: 22 - 30
 Siu: 31 - 40
@@ -701,7 +726,7 @@ Siu: 31 - 40
 inspect(motion_data_test)
 ```
 
-Dab is not recognized at all: 10/10 are missclassified
+Lunges is not recognized at all: 10/10 are missclassified
 
 Idle: 10 / 10 Samples with at least 70 % correct
 
@@ -713,7 +738,8 @@ In total we have an avg accuracy of 60 %
 
 ```{r}
 total_accuracy <- 0
-average_accuracy <- 0
+sample_accuracy <- 0
+correct_samples <- 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -739,17 +765,27 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   cm_rf_all <- confusionMatrix(rpart_pred_new, motion_data_no_labels$Category)
   #print(cm_rf_all)
   test <- as.data.frame(cm_rf_all$table)
-  
+  if (unique(ref) == test$Prediction[which.max(test$Freq)]) {
+    correct_samples <- correct_samples  + 1
+  }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
 }
 
-average_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
-average_accuracy
+sample_accuracy <- total_accuracy / length(unique(motion_data_test$Sample))
+print(paste("Accuracy over all samples: ", sample_accuracy))
+
+avg_acc <- correct_samples / length(unique(motion_data_test$Sample))
+print(paste("Accuracy of correct samples: ", avg_acc * 100))
 ```
 
-This was used for dab:
+
+
+
+This was used for Lunges:
 
 Good correlation between:
 
@@ -779,11 +815,11 @@ Accuracies:
 
 Classification: 
 
-* The problem is that the models do not recognize dab at all. 
+* The problem is that the models do not recognize Lunges at all. 
 
-* The reason for that is, because Dab is kinda included into Siu.
+* The reason for that is, because Lunges is kinda included into Siu.
 
-* That's why they also missclassified Dab with Siu.
+* That's why they also missclassified Lunges with Siu.
 
 So, we decided to use another acitivity called lunge and train test the models.
 
