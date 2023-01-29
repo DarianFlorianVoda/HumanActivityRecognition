@@ -29,16 +29,16 @@ rm( list = ls() )
 ```
 
 ```{r}
-read_idle = read.csv("03_Lunges_with_Dari/01_Idle.csv")
+read_idle = read.csv("04_Additional_Data/01_Idle.csv")
 idle_data <- data.frame(read_idle)
 
-read_run = read.csv("03_Lunges_with_Dari/02_Running.csv")
+read_run = read.csv("04_Additional_Data/02_Running.csv")
 run_data <- data.frame(read_run)
 
-read_lunge= read.csv("03_Lunges_with_Dari/03_Lunge.csv")
+read_lunge= read.csv("04_Additional_Data/03_Lunge.csv")
 lunge_data <- data.frame(read_lunge)
 
-read_siu = read.csv("03_Lunges_with_Dari/04_Siu.csv")
+read_siu = read.csv("04_Additional_Data/04_Siu.csv")
 siu_data <- data.frame(read_siu)
 ```
 
@@ -122,8 +122,8 @@ Train with data from Ahmed, Tobias, Saghar and Ronaldo
 #motion_data_train <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias" | Author == "Saghar" | Author == "Ronaldo") #+ subset(motion_data_all, Author == "Tobias")
 #motion_data_unknown <- subset(motion_data, Author == "Regan" | Author == "Darian") # 33 %
 
-motion_data_train <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan" | Author == "Darian" ) 
-motion_data_test <- subset(motion_data_all, Author == "Saghar" )
+motion_data_train <- subset(motion_data_all, Author == "Ahmed" | Author == "Tobias"| Author == "Ronaldo"| Author == "Regan" | Author == "Darian" | Author == "Saghar" ) 
+motion_data_test <- subset(motion_data_all, Author == "Test" )
 ```
 
 
@@ -262,7 +262,7 @@ plot
 ```
 
 ```{r}
-corr_data <- select(subset(motion_data_all_stat, Author == "Saghar"), c("acceleration", "angularVelocity"))
+corr_data <- select(subset(motion_data_all_stat, Author == "Test"), c("acceleration", "angularVelocity"))
 ```
 
 
@@ -493,6 +493,18 @@ list_motion_data_unknown = c()
 total_accuracy <- 0
 sample_accuracy <- 0
 correct_samples_rf <- 0
+
+correct_count_idle = 0
+total_count_idle = 0
+
+correct_count_running = 0
+total_count_running = 0
+
+correct_count_lunge = 0
+total_count_lunge = 0
+
+correct_count_siu = 0
+total_count_siu = 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -524,10 +536,35 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
 
-  list_motion_data_unknown <- append(list_motion_data_unknown, motion_data_no_labels)
+  if(unique(ref) == 'Idle' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_idle = correct_count_idle + 1
+    }
+    total_count_idle = total_count_idle + 1 
+  }
+  if(unique(ref) == 'Running' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)]){
+      correct_count_running = correct_count_running + 1
+    }
+    total_count_running = total_count_running + 1
+  }
+  
+  if( unique(ref) == 'Lunges'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_lunge = correct_count_lunge + 1
+    }
+    total_count_lunge = total_count_lunge + 1
+  }
+  
+  if( unique(ref) == 'Siu'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_siu = correct_count_siu + 1
+    }
+    total_count_siu = total_count_siu + 1
+  }
 }
 
-print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Test" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
 sample_accuracy_rf <- total_accuracy / length(unique(motion_data_test$Sample))
@@ -626,6 +663,18 @@ In total we have an avg accuracy of 60 %
 total_accuracy <- 0
 sample_accuracy <- 0
 correct_samples_knn <- 0
+
+correct_count_idle = 0
+total_count_idle = 0
+
+correct_count_running = 0
+total_count_running = 0
+
+correct_count_lunge = 0
+total_count_lunge = 0
+
+correct_count_siu = 0
+total_count_siu = 0
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
   
@@ -657,9 +706,36 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
+  
+  if(unique(ref) == 'Idle' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_idle = correct_count_idle + 1
+    }
+    total_count_idle = total_count_idle + 1 
+  }
+  if(unique(ref) == 'Running' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)]){
+      correct_count_running = correct_count_running + 1
+    }
+    total_count_running = total_count_running + 1
+  }
+  
+  if( unique(ref) == 'Lunges'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_lunge = correct_count_lunge + 1
+    }
+    total_count_lunge = total_count_lunge + 1
+  }
+  
+  if( unique(ref) == 'Siu'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_siu = correct_count_siu + 1
+    }
+    total_count_siu = total_count_siu + 1
+  }
 }
 
-print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Test" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
 sample_accuracy_knn <- total_accuracy / length(unique(motion_data_test$Sample))
@@ -766,6 +842,17 @@ total_accuracy <- 0
 sample_accuracy <- 0
 correct_samples_rpart <- 0
 
+correct_count_idle = 0
+total_count_idle = 0
+
+correct_count_running = 0
+total_count_running = 0
+
+correct_count_lunge = 0
+total_count_lunge = 0
+
+correct_count_siu = 0
+total_count_siu = 0
 
 for(i in 1:length(unique(motion_data_test$Sample))){
   #print(i)
@@ -797,9 +884,35 @@ for(i in 1:length(unique(motion_data_test$Sample))){
   }
   
   print(paste("Reference: ", unique(ref), "Prediction: ", test$Prediction[which.max(test$Freq)], "Accuracy: ", accuracy, sep = " "))
+  if(unique(ref) == 'Idle' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_idle = correct_count_idle + 1
+    }
+    total_count_idle = total_count_idle + 1 
+  }
+  if(unique(ref) == 'Running' ){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)]){
+      correct_count_running = correct_count_running + 1
+    }
+    total_count_running = total_count_running + 1
+  }
+  
+  if( unique(ref) == 'Lunges'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_lunge = correct_count_lunge + 1
+    }
+    total_count_lunge = total_count_lunge + 1
+  }
+  
+  if( unique(ref) == 'Siu'){
+    if(unique(ref) == test$Prediction[which.max(test$Freq)] ){
+      correct_count_siu = correct_count_siu + 1
+    }
+    total_count_siu = total_count_siu + 1
+  }
 }
 
-print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Saghar" ))))
+print(paste("Amount of rows for all samples in total: ", nrow(subset(motion_data, Author == "Test" ))))
 print(paste("Amount of samples in total: ", length(unique(motion_data_test$Sample))))
 
 sample_accuracy_rpart <- total_accuracy / length(unique(motion_data_test$Sample))
@@ -808,6 +921,10 @@ print(paste("Accuracy over all samples: ", sample_accuracy_rpart))
 avg_acc_rpart <- correct_samples_rpart / length(unique(motion_data_test$Sample))
 print(paste("Accuracy of correct samples: ", avg_acc_rpart * 100))
 ```
+
+
+
+
 
 #### Model results:
 ```{r}
@@ -833,8 +950,8 @@ results_models
 ```{r}
 results_rpart <- data.frame(
   Category = c("Idle", "Running", "Lunge", "Siu"),
-  Nr_Samples = c(10, 10, 10, 10),
-  Correct_Pred = c(10,0,1,9)
+  Nr_Samples = c(total_count_idle, total_count_running, total_count_lunge, total_count_siu),
+  Correct_Pred = c(correct_count_idle,correct_count_running,correct_count_lunge,correct_count_siu)
   # Train = c(round(mean(model_rf_all$results$Accuracy),3) * 100, round(mean(model_knn$results$Accuracy),3) * 100, round(mean(model_rpart$results$Accuracy),3) * 100),
   # #Test = c(accuracy_rf_test, accuracy_knn_test, accuracy_rpart_test),
   # 
@@ -850,8 +967,8 @@ results_rpart
 ```{r}
 results_randomforest <- data.frame(
   Category = c("Idle", "Running", "Lunge", "Siu"),
-  Nr_Samples = c(10, 10, 10, 10),
-  Correct_Pred = c(6,10,10,9)
+  Nr_Samples = c(total_count_idle, total_count_running, total_count_lunge, total_count_siu),
+  Correct_Pred = c(correct_count_idle,correct_count_running,correct_count_lunge,correct_count_siu)
 )
 
 results_randomforest
@@ -861,8 +978,8 @@ results_randomforest
 ```{r}
 results_knn <- data.frame(
   Category = c("Idle", "Running", "Lunge", "Siu"),
-  Nr_Samples = c(10, 10, 10, 10),
-  Correct_Pred = c(9,10,10,10)
+  Nr_Samples = c(total_count_idle, total_count_running, total_count_lunge, total_count_siu),
+  Correct_Pred = c(correct_count_idle,correct_count_running,correct_count_lunge,correct_count_siu)
 )
 
 results_knn
