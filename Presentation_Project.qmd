@@ -1,0 +1,178 @@
+---
+title: "Human Activity Recognition"
+author: "Ahmed Hesham, Regan Kaci, Tobias Egger, Saghar Ghaffari, Ronaldo Sacaj, Darian Voda"
+format: html
+server: shiny
+toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r}
+# library("png")
+# pp <- readPNG("img1.png")
+# plot.new() 
+# rasterImage(pp,0,0,1,1)
+
+library(magick)# specify the path to the gif file
+gif_file <- "img1.png"# read the gif file
+gif_image <- image_read(gif_file)# display the gif
+image_animate(gif_image)
+```
+
+
+## Introduction
+
+This project is based on detecting Human Activity using Machine Learning Models.
+
+The structure of the project is classification of human motion data using a Smartphone.
+
+The smartphone application used for gathering the samples is called **MATLAB**
+
+
+## Project Structure
+
+- Problem Modelling
+
+- Classification of human motion data
+  - Record data from different movements using **MATLAB**
+  - Preprocess the data
+  - EDA
+  - Classification & Evaluation of the model
+  - Interpret results
+  
+- Create a Shiny-App Dashboard with important facts of the project
+
+- Conclusions
+
+## Problem Modelling
+
+There are 4 human movements that are going to be classified.
+2 movements are simple ones and the other 2 are more "creative".
+
+The following movements were commonly decided:
+
+- Normal Movements
+  - Idle
+  - Running
+- Creative Movements
+  - Lunges
+```{r}
+# library("jpeg")
+# pp <- readJPEG("Do_the_Dab.jpg")
+# plot.new() 
+# rasterImage(pp,0,0,1,1)
+
+library(magick)# specify the path to the gif file
+gif_file <- "lunges.gif"# read the gif file
+gif_image <- image_read(gif_file)# display the gif
+image_animate(gif_image)
+```
+  - Siu [Ronaldo's goal celebration]
+  
+```{r}
+library(magick)# specify the path to the gif file
+gif_file <- "ronaldo_siu.gif"# read the gif file
+gif_image <- image_read(gif_file)# display the gif
+image_animate(gif_image)
+```
+
+
+## MATLAB Mobile
+
+MATLAB Mobile is a lightweight desktop on your iPhone/Android that connects to a MATLAB session running on the MathWorks Computing Cloud or on your computer. For example, from the convenience of your iPad, you can run scripts, create figures, and view results.
+
+For the scope of the project, each of us recorded all the data available using **Sensors** feature for: 
+
+- Acceleration
+- Angular Velocity
+- Orientation
+- Position
+
+```{r}
+library(magick)# specify the path to the image file
+image_file <- "matlab_record.jpg"# read the image file
+image <- image_read(image_file)# change the size of the image to 200x200 pixels
+# image_scale(image, "400x400!")# display the resized image
+image_animate(image)
+```
+
+Every of us has recorded each of specific movement  for 5 to 10 seconds or as a long interval for 1 minute.
+
+After recording the data, we will automatically have the values stored on **MATLAB Drive** in a .mat file extension.
+
+Each movement has 4 different tables for each feature recorded.
+
+
+## Preprocess the data
+
+1. Each feature records had three columns for different coordinate **X , Y , Z**.
+
+2. Then we copied each data frames to an excel file on **Google Drive** in order to merge all the samples in different Excel tables for each movement.
+
+```{r}
+# library("png")
+# pp <- readPNG("excel_sample.png")
+# plot.new() 
+# rasterImage(pp,0,0,1,1)
+
+library(magick)# specify the path to the gif file
+gif_file <- "excel_sample_new.png"# read the gif file
+gif_image <- image_read(gif_file)# display the gif
+image_animate(gif_image)
+```
+
+3. Downloaded the Excel files as CSV for **R Studio**.
+
+4. Preprocess the samples and clean the data
+  - Join all the type of movements into one dataframe
+  - Delete unwanted columns (Orientation[X, Y, Z], MagneticField[X, Y, Z], Sample, Acceleration Timestamp)
+  - Encode the categorical/nominal data
+  
+## EDA (Exploratory Data Analysis)
+
+1. Inspect the data
+  - Observe the features and number of observations 
+  - Detect NA values
+  - Investigate the statistical analysis (min, Q1, median, Q3, max, mean, sd, n and type values)
+2. Delete the observations with missing values if there are enough samples
+
+3. Create plots for:
+  - Distribution of the data based on movement category
+  - Correlation for feature selection
+  
+
+## Classification model
+
+1. We partitioned the dataset into 80-20 (80% training, 20% testing)
+2. Create a Scree plot in order to visualize what is the best number of features used for our modelling
+  - [CLICK!!!](http://127.0.0.1:7187/)
+3. Used the following algorithms for the training model in order to predict Category feature based on [FEATURES]:
+  - Rpart (BST - Binary Decision Trees)
+  - KNN (K-Nearest Neighbour)
+  - Random Forests
+  
+4. Use the training set for prediction of our Category feature:
+[CLICK!!!](http://127.0.0.1:7187/)
+
+
+## Interpretation of results
+
+1. The results of our training models are the following:
+  - [CLICK!!!](http://127.0.0.1:7187/)
+ 
+2. The results of the test sample are the followings:
+  - [CLICK!!!](http://127.0.0.1:7187/)
+
+ 
+ 
+## Conclusions
+ 
+- The project was straight forward, even though we faced some troubles with data preprocessing and problem modelling
+- The processes during the project were clear and we could manage also further investigations for future research of this project
+  - Different ideas of classification models
+  - Unsupervised learning methods for Human Activity Recognition
+  - Other presentation techniques
+- Multiple team meetings were created for brainstorming and teamwork.
