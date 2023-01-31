@@ -151,13 +151,13 @@ test_data_all<-feature_selection[-train_index_all, ]
 set.seed(6)
 # 6: 89.8 %
 control_par <- trainControl(method = "cv", number=4)
-model_rf_all <- train(Category~.,
+model_knn_all <- train(Category~.,
                       data=train_data_all, 
-                      "rf",
+                      "knn",
                       trControl = control_par
 )
 
-model_rf_all
+model_knn_all
 
 
 #### Accuracy on testing data with rf and cv: 86.33 % without orientation
@@ -165,13 +165,13 @@ model_rf_all
 
 set.seed(6)
 ## Generate predictions
-rf_all_pred_test <- predict(model_rf_all,test_data_all) 
+knn_all_pred_test <- predict(model_knn_all,test_data_all) 
 
 ## Print the accuracy
-accuracy <- mean(rf_all_pred_test == test_data_all$Category)*100
+accuracy <- mean(knn_all_pred_test == test_data_all$Category)*100
 accuracy
 
-cm_test_data <- confusionMatrix(rf_all_pred_test, test_data_all$Category)
+cm_test_data <- confusionMatrix(knn_all_pred_test, test_data_all$Category)
 cm_test_data
 
 plt <- as.data.frame(cm_test_data$table)
@@ -185,6 +185,7 @@ library(shinydashboard)
 library(ggplot2)
 library(reshape2)
 library(shinycssloaders)
+library(gridExtra)
 
 server <- function(input, output){
   
@@ -200,7 +201,7 @@ server <- function(input, output){
   })
   # Correlation Plot
   output$Correlation_Plot <- renderPlotly({# Calculate the correlation matrix of the data frame
-    cor_matrix <- cor(motion_data_all_numeric)
+    cor_matrix <- cor(motion_data_all[,2:10])
     
     # Visualize the correlation matrix using ggcorrplot
     Correlation_Plot1 <- ggcorrplot(cor_matrix, hc.order = TRUE, type = "lower", 
@@ -311,7 +312,7 @@ server <- function(input, output){
   })
   
  
-  output$accToTimePlot <- renderPlot({
+  output$accToTimePlot <- renderPlotly({
     
     motion_data = na.omit(motion_data) 
     
@@ -332,14 +333,15 @@ server <- function(input, output){
     vals = data.frame(xv, yv)
     
     
-    ggplot(vals, aes(x = xv, y=yv)) + 
+    plotly::ggplotly( ggplot(vals, aes(x = xv, y=yv)) + 
     geom_line() + 
     xlab("Time") +
     ylab("Acceleration (m/s^2)") +
-    ggtitle(selectMovementAcceleration)
+    ggtitle(selectMovementAcceleration))
     })
+    
   
-  output$angVelToTimePlot <- renderPlot({
+  output$angVelToTimePlot <- renderPlotly({
     
     motion_data = na.omit(motion_data) 
     
@@ -360,12 +362,31 @@ server <- function(input, output){
     vals = data.frame(xv, yv)
     
     
-    ggplot(vals, aes(x = xv, y=yv)) + 
+    plotly::ggplotly(ggplot(vals, aes(x = xv, y=yv)) + 
       geom_line() + 
       xlab("Time") +
       ylab("Angular Velocity (rad/s)") +
-      ggtitle(selectMovementAngularVelocity)
+      ggtitle(selectMovementAngularVelocity))
+    
+    
   })
+  
+  results_knn <- data.frame(
+    Category = c("Idle", "Running", "Lunge", "Siu"),
+    Observations = c(904,905,907,486),
+    Model_accuracy = c(90.44,72.69,76.33,64.83),
+    Nr_Samples = c(30, 30, 30, 31),
+    Correct_Pred = c(30,30,30,29)
+  )
+  
+  output$results_table <- renderPlot({ 
+    table <- tableGrob(results_knn,
+                       rows = NULL,
+                       cols = c("Activity", 'Observations', 'Model Accuracy' ,"Nr Samples", "Correctly Predicted"),
+                       theme = ttheme_default(base_size = 15))
+    grid.arrange(table)
+    })
+
 }
 
 
@@ -374,7 +395,7 @@ ui <- dashboardPage(
   ## Sidebar content
   dashboardSidebar(
     sidebarMenu(
-      menuItem("DashBoard", tabName = "DashBoard", icon = icon("th")),
+      menuItem("Dashboard", tabName = "Dashboard", icon = icon("th")),
       menuItem("EDA", tabName = "EDA", icon = icon("th")),
       menuItem("Model", tabName = "Model", icon = icon("th"))
       
@@ -467,7 +488,7 @@ ui <- dashboardPage(
                   status = "primary",
                   solidHeader = TRUE,
                   collapsible = TRUE,
-                  withSpinner(plotOutput("accToTimePlot", height = 500))),
+                  withSpinner(plotlyOutput("accToTimePlot", height = 500))),
                 #6th
                 box(
                   selectInput("selectMovementAngularVelocity", "Select Movement:",
@@ -479,7 +500,7 @@ ui <- dashboardPage(
                   status = "primary",
                   solidHeader = TRUE,
                   collapsible = TRUE,
-                  withSpinner(plotOutput("angVelToTimePlot", height = 500))
+                  withSpinner(plotlyOutput("angVelToTimePlot", height = 500))
                   
                 )
               )
@@ -506,7 +527,7 @@ ui <- dashboardPage(
                   ,status = "primary"
                   ,solidHeader = TRUE 
                   ,collapsible = TRUE ,
-                  withSpinner(DT::dataTableOutput("test2")))
+                  withSpinner( plotOutput("results_table")))
                 
               )
               
